@@ -1,59 +1,125 @@
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
-
-const API_KEY = "791725889e291a3ba8d0c74bf61a0e3e";
+import { useLocationSearch } from "@/hooks/use-fetch-location";
+import { GeolocationMessage } from "@/types/geolocation";
+import { useEffect, useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { weatherCodeMap } from "../../lib/weather-code";
+import CurrentlyWeather from "../../types/currently-weather";
+import SelectedLocation from "../../types/selected-location";
 
 const CurrentlyScreen = ({
-  location,
-  errorMsg,
+  selectedLocation,
+  geoLocation,
 }: {
-  location: string | null;
-  errorMsg: string | null;
+  selectedLocation: SelectedLocation | null;
+  geoLocation: GeolocationMessage | null;
 }) => {
   const colorScheme = useColorScheme();
+  const { selectCountry } = useLocationSearch();
+  const [weather, setWeather] = useState<CurrentlyWeather | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const select = async () => {
+    try {
+      setError(null);
+      const data = await selectCountry(
+        selectedLocation?.latitude!,
+        selectedLocation?.longitude!,
+      );
+      setWeather({
+        current_weather_units: {
+          temperature: data.current_weather_units.temperature,
+          windspeed: data.current_weather_units.windspeed,
+        },
+        current_weather: {
+          name: selectedLocation?.name!,
+          region: selectedLocation?.admin1!,
+          country: selectedLocation?.country!,
+          temperature: data.current_weather.temperature,
+          condition:
+            weatherCodeMap[data.current_weather.weathercode] ?? "Unknown",
+          windSpeed: data.current_weather.windspeed,
+        },
+      });
+    } catch (err: any) {
+      setError(err.message || "Failed to fetch weather data");
+    }
+  };
+
+  useEffect(() => {
+    if (selectedLocation) {
+      select();
+    }
+  }, [selectedLocation]);
+
+  const textColor = colorScheme === "dark" ? "white" : "black";
 
   return (
-    <View style={styles.container}>
-      {!errorMsg ? (
-        <View
-          style={{
-            padding: 10,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <Text
-            style={{
-              color: colorScheme === "dark" ? "white" : "black",
-            }}
-          >
-            Currently
+    <ScrollView>
+      <View style={styles.contentContainer}>
+        <Text style={[styles.text, { color: textColor }]}>Currently</Text>
+        {geoLocation && !selectedLocation && !geoLocation.error && (
+          <Text style={[styles.text, { color: textColor }]}>
+            {geoLocation.message}
           </Text>
-          <Text
-            style={{
-              color: colorScheme === "dark" ? "white" : "black",
-            }}
-          >
-            {location}
+        )}
+        {geoLocation && !selectedLocation && geoLocation.error && (
+          <Text style={[styles.text, { color: "red" }]}>
+            {geoLocation.message}
           </Text>
-        </View>
-      ) : (
-        <Text style={{ padding: 10, color: "red" }}>{errorMsg}</Text>
-      )}
-    </View>
+        )}
+        {error && <Text style={styles.errorText}>{error}</Text>}
+        {selectedLocation && !error && (
+          <View style={styles.locationText}>
+            <Text style={[styles.text, { color: textColor }]}>
+              {weather?.current_weather.name}
+            </Text>
+            <Text style={[styles.text, { color: textColor }]}>
+              {weather?.current_weather.region}
+            </Text>
+            <Text style={[styles.text, { color: textColor }]}>
+              {weather?.current_weather.country}
+            </Text>
+            <Text style={[styles.text, { color: textColor }]}>
+              {weather?.current_weather.temperature}{" "}
+              {weather?.current_weather_units.temperature}
+            </Text>
+            <Text style={[styles.text, { color: textColor }]}>
+              {weather?.current_weather.condition}
+            </Text>
+            <Text style={[styles.text, { color: textColor }]}>
+              {weather?.current_weather.windSpeed}{" "}
+              {weather?.current_weather_units.windspeed}
+            </Text>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
 export default CurrentlyScreen;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: "center",
+  contentContainer: {
+    padding: 10,
+    display: "flex",
+    flexDirection: "column",
+    gap: 10,
     justifyContent: "center",
+    alignItems: "center",
+  },
+  locationText: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 5,
+    alignItems: "center",
+  },
+  text: {
+    textAlign: "center",
+  },
+  errorText: {
+    color: "red",
+    marginTop: 20,
   },
 });

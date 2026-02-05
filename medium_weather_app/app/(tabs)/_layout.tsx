@@ -1,32 +1,37 @@
+import CustomTabBar from "@/components/CustomTabBar";
+import LocationButton from "@/components/LocationButton";
+import SearchBar from "@/components/SearchBar";
+import SearchResults from "@/components/SearchResults";
 import { useColorScheme } from "@/hooks/use-color-scheme";
-import { Ionicons } from "@expo/vector-icons";
-import Entypo from "@expo/vector-icons/Entypo";
+import { useLocation } from "@/hooks/use-location";
+import { useSearch } from "@/hooks/use-search";
 import FontAwesome5 from "@expo/vector-icons/FontAwesome5";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { ComponentProps, useEffect, useState } from "react";
-import {
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View,
-  useWindowDimensions,
-} from "react-native";
+import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { TabBar, TabView } from "react-native-tab-view";
+import { TabView } from "react-native-tab-view";
 import CurrentlyScreen from ".";
+import SelectedLocation from "../../types/selected-location";
 import TodayScreen from "./today";
 import WeeklyScreen from "./weekly";
-import * as Location from "expo-location";
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const layout = useWindowDimensions();
   const [index, setIndex] = useState<number>(0);
-  const [search, setSearch] = useState<string>("");
-  const [location, setLocation] = useState<string | null>(
+  const [currentlyLocation, setCurrentlyLocation] =
+    useState<SelectedLocation | null>(null);
+  const [todayLocation, setTodayLocation] = useState<SelectedLocation | null>(
     null,
   );
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [weeklyLocation, setWeeklyLocation] = useState<SelectedLocation | null>(
+    null,
+  );
+  const { getCurrentLocation, firstLocation } = useLocation();
+  const { search, countries, loading, error, handleChangeText, setSearch } =
+    useSearch();
+
   const [routes] = useState<
     {
       key: string;
@@ -47,126 +52,108 @@ export default function TabLayout() {
     { key: "weekly", title: "Weekly", icon: "view-week" },
   ]);
 
-  const renderScene = ({ route }: { route: any }) => {
-    switch (route.key) {
-      case "index":
-        return <CurrentlyScreen location={location} errorMsg={errorMsg} />;
-      case "today":
-        return <TodayScreen location={location} errorMsg={errorMsg} />;
-      case "weekly":
-        return <WeeklyScreen location={location} errorMsg={errorMsg} />;
-      default:
-        return null;
-    }
+  const colorMode = colorScheme === "dark" ? "dark" : "light";
+  const backgroundColor = colorScheme === "dark" ? "black" : "white";
+
+  const handleClick = () => {
+    handleSelectCountry({
+      latitude: "",
+      longitude: "",
+      name: search,
+      country: "",
+      admin1: "",
+      id: 0,
+    });
   };
 
-  const displayLocation = (search: string) => {
-    setLocation(search);
+  const handleSelectCountry = (location: SelectedLocation) => {
     setSearch("");
+    switch (index) {
+      case 0:
+        setCurrentlyLocation(location);
+        break;
+      case 1:
+        setTodayLocation(location);
+        break;
+      case 2:
+        setWeeklyLocation(location);
+        break;
+    }
   };
 
-  async function getCurrentLocation() {
-    setLocation("Waiting...");
-    try {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
-        setErrorMsg("Permission to access location was denied");
-        return;
-      }
-    } catch (error: any) {
-      setErrorMsg(error.message);
+  const handleClickLocation = () => {
+    switch (index) {
+      case 0:
+        setCurrentlyLocation(null);
+        break;
+      case 1:
+        setTodayLocation(null);
+        break;
+      case 2:
+        setWeeklyLocation(null);
+        break;
     }
-
-    try {
-      let location = await Location.getCurrentPositionAsync({});
-      if (location) {
-        displayLocation(
-          location.coords.latitude.toString() +
-            " " +
-            location.coords.longitude.toString(),
-        );
-      }
-    } catch (error: any) {
-      setErrorMsg(error.message);
-    }
-  }
+    getCurrentLocation();
+  };
 
   useEffect(() => {
     getCurrentLocation();
   }, []);
 
+  const renderScene = ({ route }: { route: any }) => {
+    switch (route.key) {
+      case "index":
+        return (
+          <CurrentlyScreen
+            selectedLocation={currentlyLocation}
+            geoLocation={firstLocation}
+          />
+        );
+      case "today":
+        return (
+          <TodayScreen
+            selectedLocation={todayLocation}
+            geoLocation={firstLocation}
+          />
+        );
+      case "weekly":
+        return (
+          <WeeklyScreen
+            selectedLocation={weeklyLocation}
+            geoLocation={firstLocation}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
   const renderTabBar = (props: any) => (
-    <TabBar
-      {...props}
-      activeColor={colorScheme === "dark" ? "white" : "black"}
-      inactiveColor="grey"
-      indicatorStyle={{
-        backgroundColor: colorScheme === "dark" ? "white" : "black",
-      }}
-      style={{
-        backgroundColor: colorScheme === "dark" ? "black" : "white",
-        height: 60,
-      }}
-    />
+    <CustomTabBar colorScheme={colorMode} props={props} />
   );
 
   return (
     <SafeAreaView
-      style={{
-        flex: 1,
-        backgroundColor: colorScheme === "dark" ? "black" : "white",
-      }}
+      style={[styles.container, { backgroundColor }]}
       edges={["top"]}
     >
       <View style={styles.header}>
-        <View
-          style={[
-            styles.searchContainer,
-            {
-              backgroundColor: colorScheme === "dark" ? "#1A1A1A" : "#F0F0F0",
-            },
-          ]}
-        >
-          <TextInput
-            style={[
-              styles.searchInput,
-              { color: colorScheme === "dark" ? "white" : "black" },
-            ]}
-            placeholder="Search city..."
-            placeholderTextColor="grey"
-            value={search}
-            onChangeText={setSearch}
+        <SearchBar
+          search={search}
+          colorScheme={colorMode}
+          onChangeText={handleChangeText}
+          onSearch={handleClick}
+        />
+        <LocationButton colorScheme={colorMode} onPress={handleClickLocation} />
+        {search.length > 0 && (
+          <SearchResults
+            countries={countries}
+            loading={loading}
+            error={error}
+            colorScheme={colorMode}
+            onSelectCountry={handleSelectCountry}
           />
-          <TouchableOpacity
-            onPress={() => {
-              displayLocation(search);
-            }}
-            style={styles.searchButton}
-          >
-            <Ionicons
-              name="search"
-              size={20}
-              color={colorScheme === "dark" ? "white" : "black"}
-            />
-          </TouchableOpacity>
-        </View>
-        <View
-          style={[
-            styles.headerRight,
-            {
-              backgroundColor: colorScheme === "dark" ? "#1A1A1A" : "#F0F0F0",
-            },
-          ]}
-        >
-          <TouchableOpacity
-            onPress={() => {
-              getCurrentLocation();
-            }}
-            style={styles.headerButton}
-          >
-            <Entypo name="location-pin" size={20} color="white" />
-          </TouchableOpacity>
-        </View>
+        )}
       </View>
       <TabView
         navigationState={{ index, routes }}
@@ -193,67 +180,20 @@ export default function TabLayout() {
 }
 
 const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
   header: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     gap: 10,
+    position: "relative",
   },
-  searchContainer: {
-    display: "flex",
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    paddingLeft: 12,
-    height: 48,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    height: "100%",
-    color: "#00000060",
-  },
-  searchButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    height: 48,
-    width: 48,
-    display: "flex",
-    justifyContent: "center",
-    overflow: "hidden",
-    backgroundColor: "transparent",
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 12,
-    height: 48,
-    width: 48,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    display: "flex",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-  headerButton: {
-    padding: 0,
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    width: "100%",
-    height: "100%",
-    backgroundColor: "red",
+  locationText: {
+    textAlign: "center",
+    paddingVertical: 8,
   },
 });
