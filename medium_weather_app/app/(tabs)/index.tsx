@@ -108,18 +108,25 @@ const styles = StyleSheet.create({
     gap: 10,
     justifyContent: "center",
     alignItems: "center",
+    zIndex: 5,
   },
   locationText: {
     display: "flex",
     flexDirection: "column",
     gap: 5,
     alignItems: "center",
+    zIndex: 5,
+
   },
   text: {
     textAlign: "center",
+    zIndex: 5,
+
   },
   errorText: {
     color: "red",
     marginTop: 20,
+    zIndex: 5,
+
   },
 });

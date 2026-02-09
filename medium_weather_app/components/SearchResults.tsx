@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     overflow: "hidden",
     width: "100%",
-    zIndex: 100,
+    zIndex: 999,
   },
   loadingContainer: {
     padding: 10,
