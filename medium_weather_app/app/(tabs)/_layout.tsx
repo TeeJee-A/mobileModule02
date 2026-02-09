@@ -11,7 +11,7 @@ import { ComponentProps, useEffect, useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { TabView } from "react-native-tab-view";
-import CurrentlyScreen from "./currently";
+import CurrentlyScreen from ".";
 import SelectedLocation from "../../types/selected-location";
 import TodayScreen from "./today";
 import WeeklyScreen from "./weekly";
